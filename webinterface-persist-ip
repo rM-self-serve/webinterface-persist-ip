@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# Copyright (c) 2023 rM-self-serve
+# SPDX-License-Identifier: MIT
+
+webinterface_persist_ip_version='v1.0.0'
+
+webinterface_ip='10.11.99.1'
+webinterface_iprange="32"
+
+main() {
+	case "$@" in
+	'-h' | '--help' | '')
+		cli_info
+		;;
+
+	'-s' | '--status')
+		status
+		;;
+
+	'--run')
+		run
+		;;
+
+	*)
+		echo 'input not recognized'
+		cli_info
+		;;
+	esac
+}
+
+cli_info() {
+	echo -e "${GREEN}webinterface-persist-ip ${webinterface_persist_ip_version}${NC}"
+	echo ''
+	echo 'This simple program will ensure the web-interface is internally'
+	echo "accessible at ${webinterface_ip}:80 after disconnecting the usb cord."
+	echo 'Source+Docs: https://github.com/rM-self-serve/webinterface-persist-ip'
+	echo ''
+	echo -e "${CYAN}ENABLE/USE:${NC}"
+	echo '$ systemctl enable --now webinterface-persist-ip'
+	echo ''
+	echo -e "${CYAN}DISABLE:${NC}"
+	echo '$ systemctl disable --now webinterface-persist-ip'
+	echo ''
+	echo -e "${CYAN}USAGE:${NC}"
+	echo '  webinterface-persist-ip [OPTIONS]'
+	echo ''
+	echo -e "${CYAN}OPTIONS:${NC}"
+	echo '  -h, --help        Show help'
+	echo '  -s, --status      Status of webinterface-persist-ip'
+	echo '  --run             Run webinterface-persist-ip in current shell'
+}
+
+status() {
+	echo -e "${CYAN}[${NC}XOCHITL WEB-INTERFACE${CYAN}]"
+
+	if netstat -tuln | grep -qE "${webinterface_ip}:80.*LISTEN"; then
+		echo -e "${GREEN}Running${NC}"
+	else
+		echo -e "${RED}Not running${NC}"
+	fi
+
+	if ip a | grep -q "${webinterface_ip}"; then
+		echo -e "${GREEN}usb0 network interface has ${webinterface_ip} ip address${NC}"
+	else
+		echo -e "${RED}usb0 network interface does not have ${webinterface_ip} ip address${NC}"
+	fi
+
+	## ------------------------ SERVICE ------------------------
+	# PURPLE='\033[0;35m'
+	# persist_ip_service='webinterface-persist-ip.service'
+	# echo ''
+	# echo -e "${CYAN}[${NC}SERVICE${CYAN}]"
+	# echo -e "${PURPLE}webinterface-persist-ip:${NC}"
+	# if systemctl --quiet is-enabled "$persist_ip_service" 2>/dev/null; then
+	# 	echo -en " - enabled"
+	# else
+	# 	echo -en " - disabled"
+	# fi
+	# if systemctl --quiet is-active "$persist_ip_service" 2>/dev/null; then
+	# 	echo ", running"
+	# else
+	# 	echo ", not running"
+	# fi
+	## ------------------------ SERVICE ------------------------
+}
+
+run() {
+	while true; do
+		wait_for_usb0_online
+		wait_for_usb0_offline
+		restore_ip
+		echo ''
+	done
+}
+
+wait_for_usb0_online() {
+	echo 'Waiting for usb0 online'
+	/lib/systemd/systemd-networkd-wait-online -q --interface=usb0
+	echo -e "${GREEN}usb0 online${NC}"
+}
+
+wait_for_usb0_offline() {
+	echo 'Waiting for usb0 offline'
+	while /lib/systemd/systemd-networkd-wait-online -q --timeout=1 --interface=usb0; do
+		sleep 5
+	done
+	echo -e "${GREEN}usb0 offline${NC}"
+}
+
+restore_ip() {
+	echo "Adding ${webinterface_ip}/${webinterface_iprange} ip address to usb0"
+	ip addr change "${webinterface_ip}/${webinterface_iprange}" dev usb0
+	echo -e "${GREEN}usb0 now has ${webinterface_ip}/${webinterface_iprange} ip address${NC}"
+}
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+main "$@"
