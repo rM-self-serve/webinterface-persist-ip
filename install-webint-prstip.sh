@@ -2,16 +2,15 @@
 # Copyright (c) 2023 rM-self-serve
 # SPDX-License-Identifier: MIT
 
-persist_ip_sha256sum='d80071119b3a1f7c799ea4ab144a720769f847b127d83abeaff9d177f3cdf46e'
-service_file_sha256sum='b72d411cb108aeebeaece19de5fb29c96f9e0742a5d43d0c550c1447af9596ae'
+prstip_sha256sum='89ff06b3ba389e7b86c8b5db4e20da6efd635933ae9f0e060a39c48e85800e4e'
 
-release='v1.0.0'
+release='v2.0'
 
 installfile='./install-webint-prstip.sh'
 pkgname='webinterface-persist-ip'
 localbin='/home/root/.local/bin'
 binfile="${localbin}/${pkgname}"
-servicefile="/lib/systemd/system/${pkgname}.service"
+aliasfile="${localbin}/webint-prstip"
 
 remove_installfile() {
 	read -r -p "Would you like to remove installation script? [y/N] " response
@@ -51,15 +50,7 @@ case :$PATH: in
 esac
 
 pkg_sha_check() {
-	if sha256sum -c <(echo "$persist_ip_sha256sum  $binfile") >/dev/null 2>&1; then
-		return 0
-	else
-		return 1
-	fi
-}
-
-srvc_sha_check() {
-	if sha256sum -c <(echo "$service_file_sha256sum  $servicefile") >/dev/null 2>&1; then
+	if sha256sum -c <(echo "$prstip_sha256sum  $binfile") >/dev/null 2>&1; then
 		return 0
 	else
 		return 1
@@ -70,56 +61,26 @@ sha_fail() {
 	echo "sha256sum did not pass, error downloading ${pkgname}"
 	echo "Exiting installer and removing installed files"
 	[[ -f $binfile ]] && rm $binfile
-	[[ -f $servicefile ]] && rm $servicefile
 	remove_installfile
 	exit
 }
 
-need_bin=true
-if [ -f $binfile ]; then
-	if pkg_sha_check; then
-		need_bin=false
-		echo "Already have the right version of ${pkgname}"
-	else
-		rm $binfile
-	fi
-fi
-if [ "$need_bin" = true ]; then
-	wget "https://github.com/rM-self-serve/${pkgname}/releases/download/${release}/${pkgname}" \
-		-O "$binfile"
+[[ -f $binfile ]] && rm $binfile
+wget "https://github.com/rM-self-serve/${pkgname}/releases/download/${release}/${pkgname}" \
+	-O "$binfile"
 
-	if ! pkg_sha_check; then
-		sha_fail
-	fi
-
-	chmod +x "${localbin}/${pkgname}"
+if ! pkg_sha_check; then
+	sha_fail
 fi
 
-need_service=true
-if [ -f $servicefile ]; then
-	if srvc_sha_check; then
-		need_service=false
-		echo "Already have the right version of ${pkgname}"
-	else
-		rm $servicefile
-	fi
-fi
-if [ "$need_service" = true ]; then
-	wget "https://github.com/rM-self-serve/${pkgname}/releases/download/${release}/${pkgname}.service" \
-		-O "$servicefile"
-
-	if ! srvc_sha_check; then
-		sha_fail
-	fi
-fi
-
-systemctl daemon-reload
+chmod +x $binfile
+ln -s $binfile $aliasfile
 
 echo ""
 echo "Finished installing ${pkgname}"
 echo ""
 echo "To use ${pkgname}, run:"
-echo "$ systemctl enable --now ${pkgname}"
+echo "$ webint-prstip apply"
 echo ""
 
 remove_installfile

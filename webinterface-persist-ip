@@ -2,118 +2,133 @@
 # Copyright (c) 2023 rM-self-serve
 # SPDX-License-Identifier: MIT
 
-webinterface_persist_ip_version='v1.0.0'
+webinterface_persist_ip_version='v2.0'
 
-webinterface_ip='10.11.99.1'
-webinterface_iprange="32"
+ip_cmd="ip addr change 10.11.99.1/32 dev usb0"
 
 main() {
 	case "$@" in
 	'-h' | '--help' | '')
 		cli_info
 		;;
-
-	'-s' | '--status')
-		status
+	'apply')
+		apply
 		;;
-
-	'--run')
-		run
+	'revert')
+		revert
 		;;
-
 	*)
 		echo 'input not recognized'
 		cli_info
 		;;
 	esac
+	true
 }
 
 cli_info() {
 	echo -e "${GREEN}webinterface-persist-ip ${webinterface_persist_ip_version}${NC}"
 	echo ''
 	echo 'This simple program will ensure the web-interface is internally'
-	echo "accessible at ${webinterface_ip}:80 after disconnecting the usb cord."
+	echo "accessible at 10.11.99.1:80 after disconnecting the usb cord."
 	echo 'Source+Docs: https://github.com/rM-self-serve/webinterface-persist-ip'
-	echo ''
-	echo -e "${CYAN}ENABLE/USE:${NC}"
-	echo '$ systemctl enable --now webinterface-persist-ip'
-	echo ''
-	echo -e "${CYAN}DISABLE:${NC}"
-	echo '$ systemctl disable --now webinterface-persist-ip'
 	echo ''
 	echo -e "${CYAN}USAGE:${NC}"
 	echo '  webinterface-persist-ip [OPTIONS]'
 	echo ''
+	echo -e "${CYAN}COMMANDS:${NC}"
+	echo '  apply        Apply persist ip modification'
+	echo '  revert       Revert persist ip modification'
+	echo ''
 	echo -e "${CYAN}OPTIONS:${NC}"
 	echo '  -h, --help        Show help'
-	echo '  -s, --status      Status of webinterface-persist-ip'
-	echo '  --run             Run webinterface-persist-ip in current shell'
 }
 
-status() {
-	echo -e "${CYAN}[${NC}XOCHITL WEB-INTERFACE${CYAN}]"
+vars() {
+	indx_file='/etc/ifplugd/ifplugd.action'
+	ndx_content=$(cat $indx_file)
 
-	if netstat -tuln | grep -qE "${webinterface_ip}:80.*LISTEN"; then
-		echo -e "${GREEN}Running${NC}"
+	stop_line=$(echo "$ndx_content" | grep -n 'systemctl stop' | cut -d : -f 1)
+	total_line=$(echo "$ndx_content" | wc -l)
+
+	tmp_file="/tmp/webint-persist-ip.tmp.ifplugd.action"
+}
+
+is_action_moded() {
+	if echo "$1" | grep -qhE "$ip_cmd"; then
+		return 0
 	else
-		echo -e "${RED}Not running${NC}"
+		return 1
+	fi
+}
+
+apply() {
+	vars
+
+	echo "Applying webint-upldbtn will edit:"
+	echo "/etc/ifplugd/ifplugd.action"
+	echo ""
+
+	read -r -p "Would you like to continue? [y/N] " response
+	case "$response" in
+	[yY][eE][sS] | [yY])
+		apply_index
+		;;
+	*)
+		echo "Cancel"
+		;;
+	esac
+
+}
+
+apply_index() {
+	if is_action_moded "$ndx_content"; then
+		echo "Persist ip already applied"
+		exit
 	fi
 
-	if ip a | grep -q "${webinterface_ip}"; then
-		echo -e "${GREEN}usb0 network interface has ${webinterface_ip} ip address${NC}"
-	else
-		echo -e "${RED}usb0 network interface does not have ${webinterface_ip} ip address${NC}"
+	root_line="$((stop_line + 1))"
+	[[ -f $tmp_file ]] && rm "$tmp_file"
+	{
+		echo "$ndx_content" | sed -n 1,"$stop_line"p
+		echo "    $ip_cmd"
+		echo "$ndx_content" | sed -n "$root_line","$total_line"p
+	} >"$tmp_file"
+
+	cp "$tmp_file" "$indx_file"
+	echo "Persist ip applied"
+}
+
+revert() {
+	vars
+
+	read -r -p "Would you like to revert persist ip? [y/N] " response
+	case "$response" in
+	[yY][eE][sS] | [yY])
+		revert_index
+		;;
+	*)
+		echo "Cancel"
+		;;
+	esac
+}
+
+revert_index() {
+	if ! is_action_moded "$ndx_content"; then
+		echo "Persist ip has not been applied"
+		exit
 	fi
 
-	## ------------------------ SERVICE ------------------------
-	# PURPLE='\033[0;35m'
-	# persist_ip_service='webinterface-persist-ip.service'
-	# echo ''
-	# echo -e "${CYAN}[${NC}SERVICE${CYAN}]"
-	# echo -e "${PURPLE}webinterface-persist-ip:${NC}"
-	# if systemctl --quiet is-enabled "$persist_ip_service" 2>/dev/null; then
-	# 	echo -en " - enabled"
-	# else
-	# 	echo -en " - disabled"
-	# fi
-	# if systemctl --quiet is-active "$persist_ip_service" 2>/dev/null; then
-	# 	echo ", running"
-	# else
-	# 	echo ", not running"
-	# fi
-	## ------------------------ SERVICE ------------------------
+	root_line="$((stop_line + 2))"
+	[[ -f "$tmp_file" ]] && rm "$tmp_file"
+	{
+		sed -n 1,"$stop_line"p "$indx_file"
+		sed -n "$root_line","$total_line"p "$indx_file"
+	} >"$tmp_file"
+	mv "$tmp_file" "$indx_file"
+	echo "Persist ip reverted"
+
 }
 
-run() {
-	while true; do
-		wait_for_usb0_online
-		wait_for_usb0_offline
-		restore_ip
-		echo ''
-	done
-}
-
-wait_for_usb0_online() {
-	echo 'Waiting for usb0 online'
-	/lib/systemd/systemd-networkd-wait-online -q --interface=usb0
-	echo -e "${GREEN}usb0 online${NC}"
-}
-
-wait_for_usb0_offline() {
-	echo 'Waiting for usb0 offline'
-	while /lib/systemd/systemd-networkd-wait-online -q --timeout=1 --interface=usb0; do
-		sleep 5
-	done
-	echo -e "${GREEN}usb0 offline${NC}"
-}
-
-restore_ip() {
-	echo "Adding ${webinterface_ip}/${webinterface_iprange} ip address to usb0"
-	ip addr change "${webinterface_ip}/${webinterface_iprange}" dev usb0
-	echo -e "${GREEN}usb0 now has ${webinterface_ip}/${webinterface_iprange} ip address${NC}"
-}
-
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color

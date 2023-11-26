@@ -1,57 +1,29 @@
 #!/usr/bin/env bash
-# Copyright (c) 2023 rM-self-serve
-# SPDX-License-Identifier: MIT
 
 pkgname='webinterface-persist-ip'
 removefile='./remove-webint-prstip.sh'
 localbin='/home/root/.local/bin'
 binfile="${localbin}/${pkgname}"
-servicefile="/lib/systemd/system/${pkgname}.service"
+aliasfile="${localbin}/webint-prstip"
 
-remove_removefile() {
-	read -r -p "Would you like to remove uninstallation script? [y/N] " response
-	case "$response" in
-	[yY][eE][sS] | [yY])
-		echo "Exiting installer and removing script"
-		[[ -f $removefile ]] && rm $removefile
-		;;
-	*)
-		echo "Exiting installer and leaving script"
-		;;
-	esac
-}
-
-echo "Remove ${pkgname}"
-echo ''
-echo "This will not remove the /home/root/.local/bin directory nor the path in .bashrc"
-echo ''
+printf "\nRemove webinterface-persist-ip\n"
+echo 'Make sure to revert the modifications before uninstalling'
 
 read -r -p "Would you like to continue with removal? [y/N] " response
 case "$response" in
 [yY][eE][sS] | [yY])
-	echo "Removing ${pkgname}"
+	echo "Removing webinterface-wifi"
 	;;
 *)
 	echo "Exiting removal"
-	remove_removefile
+	[[ -f $removefile ]] && rm $removefile
 	exit
 	;;
 esac
 
 [[ -f $binfile ]] && rm $binfile
+[[ -f $aliasfile ]] && rm $aliasfile
 
-if systemctl --quiet is-active "$pkgname" 2>/dev/null; then
-	echo "Stopping $pkgname"
-	systemctl stop "$pkgname"
-fi
-if systemctl --quiet is-enabled "$pkgname" 2>/dev/null; then
-	echo "Disabling $pkgname"
-	systemctl disable "$pkgname"
-fi
+[[ -f $removefile ]] && rm $removefile
 
-[[ -f $servicefile ]] && rm $servicefile
-
-echo "Successfully removed ${pkgname}"
-echo ''
-
-remove_removefile
+echo "Successfully removed webinterface-wifi"

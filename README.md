@@ -17,22 +17,61 @@ https://github.com/rM-self-serve/webinterface-onboot
 
 `$ wget https://raw.githubusercontent.com/rM-self-serve/webinterface-persist-ip/master/remove-webint-prstip.sh && bash remove-webint-prstip.sh`
 
-## Use
+## Usage
 
-### To use webinterface-persist-ip, run:
+Enable webinterface-persist-ip:
 
-`$ systemctl enable --now webinterface-persist-ip`
+`$ webint-prstip apply`
 
+Disable webinterface-persist-ip:
 
-### To stop using webinterface-persist-ip, run:
-
-`$ systemctl disable --now webinterface-persist-ip`
-
+`$ webint-prstip revert`
 
 ## How Does it Work?
 
-We first wait for systemd-networkd-wait-online to wait for the usb0 network interface to be online, meaning the usb cable was connected.
+We modify a script that runs every time the cord disconnects:
 
-Then, we use systemd-networkd-wait-online but this time use polling to wait for the connection to be interrupted, meaning the usb cable was disconnected.
+```/etc/ifplugd/ifplugd.action```
 
-Finally we add the 10.11.99.1 ip address to the usb0 network interface and begin again.
+To give usb0 the ip address:
+
+```ip addr change 10.11.99.1/32 dev usb0```
+
+
+```
+# Before
+
+if [ -z "$1" ] || [ -z "$2" ] ; then
+    echo "Wrong arguments" > /dev/stderr
+    exit 1
+fi
+
+if [ "$2" = "up" ]
+then
+    systemctl start "busybox-udhcpd@$1.service"
+fi
+
+if [ "$2" = "down" ]
+then
+    systemctl stop "busybox-udhcpd@$1.service"
+fi
+```
+```
+# After
+
+if [ -z "$1" ] || [ -z "$2" ] ; then
+    echo "Wrong arguments" > /dev/stderr
+    exit 1
+fi
+
+if [ "$2" = "up" ]
+then
+    systemctl start "busybox-udhcpd@$1.service"
+fi
+
+if [ "$2" = "down" ]
+then
+    systemctl stop "busybox-udhcpd@$1.service"
+    ip addr change 10.11.99.1/32 dev usb0
+fi
+```
