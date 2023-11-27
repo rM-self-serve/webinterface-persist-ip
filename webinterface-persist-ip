@@ -95,6 +95,7 @@ apply_index() {
 	} >"$tmp_file"
 
 	cp "$tmp_file" "$indx_file"
+	chmod +x "$indx_file"
 	echo "Persist ip applied"
 }
 
@@ -125,6 +126,7 @@ revert_index() {
 		sed -n "$root_line","$total_line"p "$indx_file"
 	} >"$tmp_file"
 	mv "$tmp_file" "$indx_file"
+	chmod +x "$indx_file"
 	echo "Persist ip reverted"
 
 }

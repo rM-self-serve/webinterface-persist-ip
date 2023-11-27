@@ -2,7 +2,7 @@
 # Copyright (c) 2023 rM-self-serve
 # SPDX-License-Identifier: MIT
 
-prstip_sha256sum='89ff06b3ba389e7b86c8b5db4e20da6efd635933ae9f0e060a39c48e85800e4e'
+prstip_sha256sum='7cf7d81d7a5196fd36711b4371255edda82f5f2bdc16a626f8b8aa1ade923b41'
 
 release='v2.0'
 
