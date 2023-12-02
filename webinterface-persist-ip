@@ -11,11 +11,11 @@ main() {
 	'-h' | '--help' | '')
 		cli_info
 		;;
-	'apply')
-		apply
+	'apply-prstip')
+		apply_prstip
 		;;
-	'revert')
-		revert
+	'revert-prstip')
+		revert_prstip
 		;;
 	*)
 		echo 'input not recognized'
@@ -36,33 +36,29 @@ cli_info() {
 	echo '  webinterface-persist-ip [OPTIONS]'
 	echo ''
 	echo -e "${CYAN}COMMANDS:${NC}"
-	echo '  apply        Apply persist ip modification'
-	echo '  revert       Revert persist ip modification'
+	echo '  apply-prstip        Apply persist ip modification'
+	echo '  revert-prstip       Revert persist ip modification'
 	echo ''
 	echo -e "${CYAN}OPTIONS:${NC}"
 	echo '  -h, --help        Show help'
 }
 
-vars() {
-	indx_file='/etc/ifplugd/ifplugd.action'
-	ndx_content=$(cat $indx_file)
+vars_prstip() {
+	target_file='/etc/ifplugd/ifplugd.action'
+	target_content=$(cat $target_file)
 
-	stop_line=$(echo "$ndx_content" | grep -n 'systemctl stop' | cut -d : -f 1)
-	total_line=$(echo "$ndx_content" | wc -l)
+	stop_line=$(echo "$target_content" | grep -n 'systemctl stop' | cut -d : -f 1)
+	total_line=$(echo "$target_content" | wc -l)
 
-	tmp_file="/tmp/webint-persist-ip.tmp.ifplugd.action"
+	tmp_file="/home/root/.webint-persist-ip.ifplugd.action.tmp"
 }
 
 is_action_moded() {
-	if echo "$1" | grep -qhE "$ip_cmd"; then
-		return 0
-	else
-		return 1
-	fi
+	echo "$1" | grep -qhE "$ip_cmd"
 }
 
-apply() {
-	vars
+apply_prstip() {
+	vars_prstip
 
 	echo "Applying webint-upldbtn will edit:"
 	echo "/etc/ifplugd/ifplugd.action"
@@ -71,7 +67,7 @@ apply() {
 	read -r -p "Would you like to continue? [y/N] " response
 	case "$response" in
 	[yY][eE][sS] | [yY])
-		apply_index
+		apply_prstip_act
 		;;
 	*)
 		echo "Cancel"
@@ -80,8 +76,8 @@ apply() {
 
 }
 
-apply_index() {
-	if is_action_moded "$ndx_content"; then
+apply_prstip_act() {
+	if is_action_moded "$target_content"; then
 		echo "Persist ip already applied"
 		exit
 	fi
@@ -89,23 +85,22 @@ apply_index() {
 	root_line="$((stop_line + 1))"
 	[[ -f $tmp_file ]] && rm "$tmp_file"
 	{
-		echo "$ndx_content" | sed -n 1,"$stop_line"p
+		echo "$target_content" | sed -n 1,"$stop_line"p
 		echo "    $ip_cmd"
-		echo "$ndx_content" | sed -n "$root_line","$total_line"p
+		echo "$target_content" | sed -n "$root_line","$total_line"p
 	} >"$tmp_file"
 
-	cp "$tmp_file" "$indx_file"
-	chmod +x "$indx_file"
+	chmod +x "$tmp_file" && cp "$tmp_file" "$target_file"
 	echo "Persist ip applied"
 }
 
-revert() {
-	vars
+revert_prstip() {
+	vars_prstip
 
 	read -r -p "Would you like to revert persist ip? [y/N] " response
 	case "$response" in
 	[yY][eE][sS] | [yY])
-		revert_index
+		revert_prstip_act
 		;;
 	*)
 		echo "Cancel"
@@ -113,8 +108,8 @@ revert() {
 	esac
 }
 
-revert_index() {
-	if ! is_action_moded "$ndx_content"; then
+revert_prstip_act() {
+	if ! is_action_moded "$target_content"; then
 		echo "Persist ip has not been applied"
 		exit
 	fi
@@ -122,11 +117,10 @@ revert_index() {
 	root_line="$((stop_line + 2))"
 	[[ -f "$tmp_file" ]] && rm "$tmp_file"
 	{
-		sed -n 1,"$stop_line"p "$indx_file"
-		sed -n "$root_line","$total_line"p "$indx_file"
+		sed -n 1,"$stop_line"p "$target_file"
+		sed -n "$root_line","$total_line"p "$target_file"
 	} >"$tmp_file"
-	mv "$tmp_file" "$indx_file"
-	chmod +x "$indx_file"
+	chmod +x "$tmp_file" && mv "$tmp_file" "$target_file"
 	echo "Persist ip reverted"
 
 }
