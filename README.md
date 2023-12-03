@@ -1,3 +1,6 @@
+# Deprecated
+## Integrated into https://github.com/rM-self-serve/webinterface-onboot
+
 # WebInterface-Persist-IP
 
 This simple program will ensure the ReMarkable Tablet's web interface is internally accessible at 10.11.99.1:80 after disconnecting the usb cable. Disconnecting the usb cable will remove the ip address from the usb0 network interface, but does not stop the web interface from running. This means that if we give usb0 an ip address, the web interface can still be used for file uploads/downloads. Useful for clients that leverage the web interface for file operations, namely access over [wifi](https://github.com/rM-self-serve/webinterface-wifi). 
